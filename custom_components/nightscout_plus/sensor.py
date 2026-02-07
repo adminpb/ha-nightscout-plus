@@ -20,7 +20,12 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    CONCENTRATION_MILLIGRAMS_PER_DECILITER,
+    CONCENTRATION_MILLIMOLES_PER_LITER,
+)
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -83,7 +88,9 @@ def _clean_attrs(treatment: Optional[dict]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Base class
 # ---------------------------------------------------------------------------
-class NightscoutPlusBaseSensor(CoordinatorEntity[NightscoutPlusCoordinator], SensorEntity):
+class NightscoutPlusBaseSensor(
+    CoordinatorEntity[NightscoutPlusCoordinator], SensorEntity
+):
     """Base sensor for Nightscout Plus."""
 
     _attr_has_entity_name = True
@@ -109,7 +116,7 @@ class NightscoutPlusBaseSensor(CoordinatorEntity[NightscoutPlusCoordinator], Sen
             "name": "Nightscout",
             "manufacturer": "Nightscout Foundation",
             "model": "CGM Remote Monitor",
-            "entry_type": "service",
+            "entry_type": DeviceEntryType.SERVICE,
         }
 
     @property
@@ -124,16 +131,27 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
     """Current blood glucose value with trend direction icon."""
 
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = "mg/dL"
+
+    # ВАЖЛИВО:
+    # Це дозволяє Home Assistant автоматично конвертувати mg/dL ↔ mmol/L
+    # згідно з Settings → System → General → Unit system
+    _attr_device_class = SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION
+    _attr_native_unit_of_measurement = CONCENTRATION_MILLIGRAMS_PER_DECILITER
+    _attr_suggested_unit_of_measurement = CONCENTRATION_MILLIMOLES_PER_LITER
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "blood_glucose", "Blood Glucose", ICON_GLUCOSE)
+        super().__init__(
+            coordinator, entry, "blood_glucose", "Blood Glucose", ICON_GLUCOSE
+        )
 
     @property
     def native_value(self) -> Optional[float]:
         sgv = self._data.latest_sgv
         if sgv:
-            return sgv.get("sgv")
+            raw = sgv.get("sgv")
+            if raw is None:
+                return None
+            return float(raw)
         return None
 
     @property
@@ -150,10 +168,14 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
         if not sgv:
             return {}
         attrs: dict[str, Any] = {}
-        # mmol/L conversion
+
+        # Залишаємо value_mmol як атрибут (не заважає),
+        # але тепер це скоріше "debug/extra info",
+        # бо HA сам вміє показувати mmol/L.
         raw = sgv.get("sgv")
         if raw is not None:
             attrs["value_mmol"] = round(float(raw) * MGDL_TO_MMOL, 1)
+
         attrs["direction"] = sgv.get("direction")
         attrs["date"] = sgv.get("dateString")
         delta = sgv.get("delta")
@@ -172,7 +194,9 @@ class NightscoutLastTreatmentSensor(NightscoutPlusBaseSensor):
     """Latest treatment of any kind."""
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "last_treatment", "Last Treatment", ICON_TREATMENT)
+        super().__init__(
+            coordinator, entry, "last_treatment", "Last Treatment", ICON_TREATMENT
+        )
 
     @property
     def native_value(self) -> Optional[str]:
@@ -275,7 +299,9 @@ class NightscoutLastExerciseSensor(NightscoutPlusBaseSensor):
     _attr_native_unit_of_measurement = "min"
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "last_exercise", "Last Exercise", ICON_EXERCISE)
+        super().__init__(
+            coordinator, entry, "last_exercise", "Last Exercise", ICON_EXERCISE
+        )
 
     @property
     def native_value(self) -> Optional[float]:
