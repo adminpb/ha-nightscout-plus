@@ -4,8 +4,6 @@
   "codeowners": ["@adminpb"],
   "config_flow": true,
   "documentation": "https://github.com/adminpb/ha-nightscout-plus",
-  "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "requirements": ["aiohttp>=3.8.0"],
   "version": "1.0.0"
 }
