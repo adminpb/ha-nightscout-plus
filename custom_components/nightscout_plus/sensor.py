@@ -20,11 +20,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONCENTRATION_MILLIGRAMS_PER_DECILITER,
-    CONCENTRATION_MILLIMOLES_PER_LITER,
-)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -136,8 +132,8 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
     # Це дозволяє Home Assistant автоматично конвертувати mg/dL ↔ mmol/L
     # згідно з Settings → System → General → Unit system
     _attr_device_class = SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION
-    _attr_native_unit_of_measurement = CONCENTRATION_MILLIGRAMS_PER_DECILITER
-    _attr_suggested_unit_of_measurement = CONCENTRATION_MILLIMOLES_PER_LITER
+    _attr_native_unit_of_measurement = "mg/dL"
+    _attr_suggested_unit_of_measurement = "mmol/L"
 
     def __init__(self, coordinator, entry):
         super().__init__(
