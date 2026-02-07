@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nightscout Plus Setup",
+        "description": "Enter your Nightscout server URL and optional API secret.",
+        "data": {
+          "url": "Nightscout URL",
+          "api_secret": "API Secret (optional)",
+          "treatments_count": "Number of treatments to fetch"
+        },
+        "data_description": {
+          "url": "Full URL of your Nightscout instance, e.g. https://my-ns.example.com",
+          "api_secret": "Leave empty if your Nightscout is publicly readable",
+          "treatments_count": "How many recent treatments to load (1-100)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Nightscout Plus",
+        "data": {
+          "url": "Nightscout URL",
+          "api_secret": "API Secret (optional)",
+          "treatments_count": "Number of treatments to fetch"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to Nightscout server",
+      "invalid_auth": "Invalid API secret",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This Nightscout instance is already configured"
+    }
+  }
+}
