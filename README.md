@@ -26,7 +26,7 @@
 ### Через HACS (рекомендовано)
 
 1. Відкрийте HACS → Integrations → ⋮ (три крапки) → **Custom repositories**
-2. Додайте URL репозиторію: `https://github.com/YOUR-USERNAME/ha-nightscout-plus`
+2. Додайте URL репозиторію: `https://github.com/adminpb/ha-nightscout-plus`
 3. Категорія: **Integration**
 4. Натисніть **Add** → знайдіть "Nightscout Plus" → **Install**
 5. Перезавантажте Home Assistant
