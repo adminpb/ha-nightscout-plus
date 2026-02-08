@@ -1,14 +1,11 @@
 """Sensor entities for Nightscout Plus.
 
-Створює 8 сенсорів:
-  1. Blood Glucose (SGV) — заміна стандартного, з підтримкою mmol/L
-  2. Last Treatment — останній treatment
-  3. Last Note — остання замітка / нотатка
-  4. Last Meal — останній прийом їжі (carbs)
-  5. Last Bolus — останній болюс інсуліну
-  6. Last Exercise — останнє тренування
-  7. IOB (Insulin On Board) — інсулін на борту
-  8. COB (Carbs On Board) — вуглеводи на борту
+Зараз створюємо ТІЛЬКИ:
+  1) Blood Glucose (SGV)
+  2) Notes (контейнер зі списком notes для plotly overlay)
+
+Старі сенсори (meal/bolus/iob/cob/...) залишені в файлі, але НЕ додаються в async_setup_entry,
+щоб не генерувати попередження/Unavailable, коли даних в Nightscout немає.
 """
 
 import logging
@@ -29,8 +26,8 @@ from .const import (
     DOMAIN,
     DIRECTION_ICONS,
     ICON_GLUCOSE,
-    ICON_TREATMENT,
     ICON_NOTE,
+    ICON_TREATMENT,
     ICON_MEAL,
     ICON_BOLUS,
     ICON_EXERCISE,
@@ -56,15 +53,10 @@ async def async_setup_entry(
         "coordinator"
     ]
 
+    # ✅ Тільки 2 сенсори: glucose + notes
     entities = [
         NightscoutGlucoseSensor(coordinator, entry),
-        NightscoutLastTreatmentSensor(coordinator, entry),
-        NightscoutLastNoteSensor(coordinator, entry),
-        NightscoutLastMealSensor(coordinator, entry),
-        NightscoutLastBolusSensor(coordinator, entry),
-        NightscoutLastExerciseSensor(coordinator, entry),
-        NightscoutIOBSensor(coordinator, entry),
-        NightscoutCOBSensor(coordinator, entry),
+        NightscoutNotesSensor(coordinator, entry),
     ]
 
     async_add_entities(entities)
@@ -128,9 +120,6 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
 
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    # ВАЖЛИВО:
-    # Це дозволяє Home Assistant автоматично конвертувати mg/dL ↔ mmol/L
-    # згідно з Settings → System → General → Unit system
     _attr_device_class = SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION
     _attr_native_unit_of_measurement = "mg/dL"
     _attr_suggested_unit_of_measurement = "mmol/L"
@@ -165,9 +154,6 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
             return {}
         attrs: dict[str, Any] = {}
 
-        # Залишаємо value_mmol як атрибут (не заважає),
-        # але тепер це скоріше "debug/extra info",
-        # бо HA сам вміє показувати mmol/L.
         raw = sgv.get("sgv")
         if raw is not None:
             attrs["value_mmol"] = round(float(raw) * MGDL_TO_MMOL, 1)
@@ -184,8 +170,43 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
 
 
 # ---------------------------------------------------------------------------
-# 2. Last Treatment
+# 2. Notes (timeline container for plotly)
 # ---------------------------------------------------------------------------
+class NightscoutNotesSensor(NightscoutPlusBaseSensor):
+    """Notes container sensor.
+
+    Використання:
+    - точки для plotly беремо з attributes["notes"]
+    - кожен note має created_at/timestamp_ms/text/sgv
+    """
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry, "notes", "Notes", ICON_NOTE)
+
+    @property
+    def native_value(self) -> Optional[str]:
+        # state неважливий для графіка — але хай буде щось читабельне
+        notes = self._data.notes
+        if not notes:
+            return None
+        last = notes[-1]
+        text = last.get("text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()[:255]
+        return "Notes"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "count": len(self._data.notes),
+            "notes": self._data.notes,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Нижче — старі сенсори (залишені, але не створюються)
+# ---------------------------------------------------------------------------
+
 class NightscoutLastTreatmentSensor(NightscoutPlusBaseSensor):
     """Latest treatment of any kind."""
 
@@ -206,9 +227,6 @@ class NightscoutLastTreatmentSensor(NightscoutPlusBaseSensor):
         return _clean_attrs(self._data.latest_treatment)
 
 
-# ---------------------------------------------------------------------------
-# 3. Last Note
-# ---------------------------------------------------------------------------
 class NightscoutLastNoteSensor(NightscoutPlusBaseSensor):
     """Latest user note / annotation."""
 
@@ -230,9 +248,6 @@ class NightscoutLastNoteSensor(NightscoutPlusBaseSensor):
         return _clean_attrs(self._data.find_latest_note())
 
 
-# ---------------------------------------------------------------------------
-# 4. Last Meal
-# ---------------------------------------------------------------------------
 class NightscoutLastMealSensor(NightscoutPlusBaseSensor):
     """Latest meal / carb entry."""
 
@@ -261,9 +276,6 @@ class NightscoutLastMealSensor(NightscoutPlusBaseSensor):
         return attrs
 
 
-# ---------------------------------------------------------------------------
-# 5. Last Bolus
-# ---------------------------------------------------------------------------
 class NightscoutLastBolusSensor(NightscoutPlusBaseSensor):
     """Latest insulin bolus."""
 
@@ -286,9 +298,6 @@ class NightscoutLastBolusSensor(NightscoutPlusBaseSensor):
         return _clean_attrs(self._data.find_latest_bolus())
 
 
-# ---------------------------------------------------------------------------
-# 6. Last Exercise
-# ---------------------------------------------------------------------------
 class NightscoutLastExerciseSensor(NightscoutPlusBaseSensor):
     """Latest exercise entry."""
 
@@ -313,9 +322,6 @@ class NightscoutLastExerciseSensor(NightscoutPlusBaseSensor):
         return _clean_attrs(self._data.find_latest_exercise())
 
 
-# ---------------------------------------------------------------------------
-# 7. IOB (Insulin On Board)
-# ---------------------------------------------------------------------------
 class NightscoutIOBSensor(NightscoutPlusBaseSensor):
     """Insulin On Board from devicestatus."""
 
@@ -334,13 +340,9 @@ class NightscoutIOBSensor(NightscoutPlusBaseSensor):
 
     @property
     def available(self) -> bool:
-        """IOB may not be available if no loop/openaps is running."""
         return super().available and self._data.get_iob() is not None
 
 
-# ---------------------------------------------------------------------------
-# 8. COB (Carbs On Board)
-# ---------------------------------------------------------------------------
 class NightscoutCOBSensor(NightscoutPlusBaseSensor):
     """Carbs On Board from devicestatus."""
 

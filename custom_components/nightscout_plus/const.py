@@ -6,7 +6,10 @@ CONF_URL = "url"
 CONF_API_SECRET = "api_secret"
 CONF_TREATMENTS_COUNT = "treatments_count"
 
-DEFAULT_TREATMENTS_COUNT = 15
+# Ти казав: до ~50 нотаток на добу -> 50 достатньо.
+DEFAULT_TREATMENTS_COUNT = 50
+
+# Частота опитування (сек). Залишаю як було.
 DEFAULT_SCAN_INTERVAL = 300  # секунд
 
 # Nightscout API endpoints
