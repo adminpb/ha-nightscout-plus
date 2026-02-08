@@ -1,8 +1,4 @@
-"""Nightscout API client — пряме з'єднання через aiohttp.
-
-Працює напряму з Nightscout REST API v1, без бібліотеки py-nightscout,
-що дозволяє отримувати ВСІ поля (включно з notes, foodType тощо).
-"""
+"""Nightscout API client — пряме з'єднання через aiohttp."""
 
 import hashlib
 import logging
@@ -43,7 +39,6 @@ class NightscoutClient:
             "Accept": "application/json",
         }
         if api_secret:
-            # Nightscout очікує SHA1 хеш api_secret
             self._headers["api-secret"] = hashlib.sha1(
                 api_secret.encode("utf-8")
             ).hexdigest()
@@ -79,17 +74,17 @@ class NightscoutClient:
         return await self._request(API_STATUS)
 
     async def get_sgvs(self, count: int = 1) -> list[dict]:
-        """GET /api/v1/entries/sgv.json — останні SGV записи."""
+        """GET /api/v1/entries/sgv.json"""
         return await self._request(API_ENTRIES, {"count": str(count)})
 
     async def get_treatments(self, count: int = 15) -> list[dict]:
-        """GET /api/v1/treatments.json — treatments з УСІМА полями."""
+        """GET /api/v1/treatments.json"""
         return await self._request(API_TREATMENTS, {"count": str(count)})
 
     async def get_device_status(self, count: int = 5) -> list[dict]:
-        """GET /api/v1/devicestatus.json — статус пристроїв (IOB/COB)."""
+        """GET /api/v1/devicestatus.json"""
         return await self._request(API_DEVICE_STATUS, {"count": str(count)})
 
     async def test_connection(self) -> dict:
-        """Перевірка підключення — повертає server status або кидає виняток."""
+        """Перевірка підключення."""
         return await self.get_server_status()

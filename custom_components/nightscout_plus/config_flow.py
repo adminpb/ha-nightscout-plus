@@ -45,11 +45,9 @@ class NightscoutPlusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             url = user_input[CONF_URL].rstrip("/")
             api_secret = user_input.get(CONF_API_SECRET, "").strip() or None
 
-            # Перевірка на дублікат
             await self.async_set_unique_id(url)
             self._abort_if_unique_id_configured()
 
-            # Перевірка підключення
             client = NightscoutClient(url, api_secret=api_secret)
             try:
                 status = await client.test_connection()
@@ -58,11 +56,10 @@ class NightscoutPlusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
             except NightscoutAPIError:
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                # Зберігаємо дані
                 data = {
                     CONF_URL: url,
                     CONF_TREATMENTS_COUNT: user_input.get(

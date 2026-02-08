@@ -21,14 +21,19 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Local timezone for display
+try:
+    from zoneinfo import ZoneInfo
+    LOCAL_TZ = ZoneInfo("Europe/Kyiv")
+except Exception:
+    LOCAL_TZ = timezone(timedelta(hours=2))  # fallback EET
+
 
 def _parse_iso_to_ms(value: Optional[str]) -> Optional[int]:
     """Parse ISO datetime string to epoch milliseconds."""
     if not value or not isinstance(value, str):
         return None
     try:
-        # Nightscout created_at виглядає як "2026-02-07T17:01:44.000Z"
-        # Python: Z -> +00:00
         v = value.replace("Z", "+00:00")
         dt = datetime.fromisoformat(v)
         if dt.tzinfo is None:
@@ -38,20 +43,20 @@ def _parse_iso_to_ms(value: Optional[str]) -> Optional[int]:
         return None
 
 
+def _ms_to_local_iso(ms: int) -> str:
+    """Convert epoch ms to local ISO string."""
+    dt_utc = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    dt_local = dt_utc.astimezone(LOCAL_TZ)
+    return dt_local.isoformat()
+
+
 class NightscoutData:
     """Структура для зберігання всіх даних з Nightscout."""
 
     def __init__(self) -> None:
-        # SGV history (беремо з запасом для 24h)
         self.sgvs: list[dict[str, Any]] = []
-
-        # Treatments (беремо count з налаштувань)
         self.treatments: list[dict[str, Any]] = []
-
-        # Notes timeline prepared for plotly
         self.notes: list[dict[str, Any]] = []
-
-        # Залишено для сумісності зі старим кодом (але ми не юзаємо)
         self.device_status: list[dict[str, Any]] = []
         self.server_status: dict[str, Any] = {}
 
@@ -72,7 +77,6 @@ class NightscoutData:
         return None
 
     def find_latest_with_notes(self) -> Optional[dict[str, Any]]:
-        """Знайти останній treatment з непорожнім notes."""
         for t in self.treatments:
             notes = t.get("notes")
             if notes and str(notes).strip():
@@ -94,7 +98,6 @@ class NightscoutData:
         return None
 
     def find_latest_note(self) -> Optional[dict[str, Any]]:
-        """Шукає замітку: спочатку по eventType, потім будь-який з notes."""
         result = self.find_latest_by_event_types(NOTE_EVENT_TYPES)
         if not result:
             result = self.find_latest_with_notes()
@@ -115,7 +118,6 @@ class NightscoutData:
     def find_latest_exercise(self) -> Optional[dict[str, Any]]:
         return self.find_latest_by_event_types(EXERCISE_EVENT_TYPES)
 
-    # IOB/COB залишаю в структурі (старий код), але сенсори ми не створюємо.
     def get_iob(self) -> Optional[float]:
         return None
 
@@ -152,7 +154,7 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
 
     @staticmethod
     def _note_time_ms(t: dict[str, Any]) -> Optional[int]:
-        """Nightscout treatment note: prefer 'timestamp' (ms), fallback to created_at."""
+        """Nightscout treatment: prefer 'timestamp' (ms), fallback created_at."""
         v = t.get("timestamp")
         if isinstance(v, int):
             return v
@@ -173,7 +175,6 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
         notes = t.get("notes")
         if isinstance(notes, str) and notes.strip():
             return notes.strip()
-        # fallback
         ev = t.get("eventType")
         if isinstance(ev, str) and ev.strip():
             return ev.strip()
@@ -213,10 +214,7 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
         try:
             import asyncio
 
-            # SGV: беремо з запасом ~24h (кожні 5 хв -> 288 точок)
             sgvs_task = self.client.get_sgvs(count=288)
-
-            # Treatments: лише стільки, скільки треба для notes (50 за твоєю реальністю)
             treatments_task = self.client.get_treatments(count=self.treatments_count)
 
             results = await asyncio.gather(
@@ -237,7 +235,7 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
             elif isinstance(results[1], Exception):
                 _LOGGER.warning("Failed to fetch treatments: %s", results[1])
 
-            # Build notes timeline (sorted old->new)
+            # Build notes timeline (sorted old→new, local timezone)
             notes: list[dict[str, Any]] = []
             for t in data.treatments:
                 if not self._is_note(t):
@@ -248,10 +246,7 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
                     continue
 
                 note = {
-                    "created_at": t.get("created_at")
-                    or datetime.fromtimestamp(
-                        ts_ms / 1000, tz=timezone.utc
-                    ).isoformat(),
+                    "created_at": _ms_to_local_iso(ts_ms),
                     "timestamp_ms": ts_ms,
                     "text": self._note_text(t),
                     "enteredBy": t.get("enteredBy"),
@@ -259,13 +254,11 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
                     "eventType": t.get("eventType"),
                 }
 
-                # y-value for marker (put on line)
+                # y-value for marker (put on glucose line)
                 sgv = self._nearest_sgv_value(ts_ms, data.sgvs)
                 if sgv is None:
                     note["sgv"] = None
                 else:
-                    # Переводимо mg/dL -> mmol/L, щоб збігалося з тим,
-                    # як HA показує glucose sensor
                     note["sgv"] = round(float(sgv) / 18.0182, 1)
 
                 notes.append(note)
@@ -275,7 +268,7 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
 
         except NightscoutAPIError as err:
             raise UpdateFailed(f"Nightscout API error: {err}") from err
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
         return data

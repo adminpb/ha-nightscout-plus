@@ -6,10 +6,7 @@ CONF_URL = "url"
 CONF_API_SECRET = "api_secret"
 CONF_TREATMENTS_COUNT = "treatments_count"
 
-# Ти казав: до ~50 нотаток на добу -> 50 достатньо.
 DEFAULT_TREATMENTS_COUNT = 50
-
-# Частота опитування (сек). Залишаю як було.
 DEFAULT_SCAN_INTERVAL = 300  # секунд
 
 # Nightscout API endpoints
@@ -51,7 +48,7 @@ ICON_LIST = "mdi:format-list-bulleted"
 ICON_IOB = "mdi:water"
 ICON_COB = "mdi:bread-slice"
 
-# Glucose direction → icon mapping (як в оригінальній інтеграції)
+# Glucose direction → icon mapping
 DIRECTION_ICONS = {
     "DoubleUp": "mdi:chevron-double-up",
     "SingleUp": "mdi:chevron-up",

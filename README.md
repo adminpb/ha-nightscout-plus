@@ -1,130 +1,123 @@
-# 🩸 Nightscout Plus for Home Assistant
+# Nightscout Plus
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)](https://github.com/adminpb/ha-nightscout-plus)
 
-Розширена інтеграція Nightscout для Home Assistant. Форк оригінальної інтеграції `nightscout` з підтримкою **treatments, notes, IOB, COB** та інших даних, які стандартний компонент ігнорує.
+Enhanced [Nightscout](https://nightscout.github.io/) integration for Home Assistant with full Plotly chart support.
 
-## Чому не стандартна інтеграція?
+Unlike the built-in Nightscout integration, **Nightscout Plus** exposes raw SGV history and treatment notes as sensor attributes — making it possible to build rich, interactive glucose charts directly in your HA dashboard.
 
-Вбудована інтеграція `nightscout` створює лише **1 сенсор** — `sensor.blood_glucose`. При цьому Nightscout API має значно більше даних. Крім того, бібліотека `py-nightscout`, яку використовує оригінал, **не включає поле `notes`** в моделі Treatment.
+## Features
 
-## Що додає Nightscout Plus?
+- **Blood Glucose sensor** — current value in mmol/L with trend direction icon
+  - `history` attribute: array of up to 288 SGV data points (24h) for Plotly charts
+  - Each point: `{"date": "ISO local time", "sgv": mmol/L}`
+  - `history_count` attribute for diagnostics
+  - Delta, direction, noise, device info
+- **Notes sensor** — container for Nightscout treatment notes
+  - `notes` attribute: array of notes with coordinates for chart overlay
+  - Each note: `{"created_at", "text", "sgv", "timestamp_ms", "eventType", ...}`
+  - SGV value matched to nearest glucose reading for accurate marker placement
+- **Timezone-aware** — all timestamps converted from UTC to local time (configurable, default `Europe/Kyiv`)
+- **Direct API access** — uses Nightscout REST API v1 via aiohttp (no py-nightscout dependency)
 
-| # | Сенсор | Стан | Одиниця | Атрибути |
-|---|--------|------|---------|----------|
-| 1 | **Blood Glucose** | SGV (mg/dL) | mg/dL | `value_mmol`, `direction`, `delta`, `delta_mmol`, `device`, `noise`, `date` |
-| 2 | **Last Treatment** | eventType | — | Всі поля treatment: `notes`, `carbs`, `insulin`, `created_at`, `enteredBy`… |
-| 3 | **Last Note** | Текст замітки (≤255 символів) | — | `eventType`, `created_at`, `enteredBy`… |
-| 4 | **Last Meal** | Кількість вуглеводів | g | `foodType`, `notes`, `created_at`… |
-| 5 | **Last Bolus** | Доза інсуліну | U | `eventType`, `programmed`, `duration`… |
-| 6 | **Last Exercise** | Тривалість | min | `notes`, `created_at`… |
-| 7 | **Insulin On Board** | IOB | U | — (з devicestatus, потрібен Loop/OpenAPS) |
-| 8 | **Carbs On Board** | COB | g | — (з devicestatus, потрібен Loop/OpenAPS) |
+## Installation
 
-## Установка
+### HACS (recommended)
 
-### Через HACS (рекомендовано)
+1. Open HACS → Integrations → ⋮ → Custom repositories
+2. Add `https://github.com/adminpb/ha-nightscout-plus` as **Integration**
+3. Install **Nightscout Plus**
+4. Restart Home Assistant
 
-1. Відкрийте HACS → Integrations → ⋮ (три крапки) → **Custom repositories**
-2. Додайте URL репозиторію: `https://github.com/adminpb/ha-nightscout-plus`
-3. Категорія: **Integration**
-4. Натисніть **Add** → знайдіть "Nightscout Plus" → **Install**
-5. Перезавантажте Home Assistant
+### Manual
 
-### Вручну
+1. Copy the `nightscout_plus/` folder to `/config/custom_components/`
+2. Restart Home Assistant
 
-Скопіюйте папку `custom_components/nightscout_plus/` у вашу директорію `config/custom_components/`.
+### Setup
 
-## Налаштування
+1. Go to **Settings → Devices & Integrations → Add Integration**
+2. Search for **Nightscout Plus**
+3. Enter your Nightscout URL and API Secret (optional if publicly readable)
+4. Set number of treatments to fetch (default: 50)
 
-1. Settings → Devices & Services → **Add Integration**
-2. Знайдіть **Nightscout Plus**
-3. Введіть:
-   - **URL** — адреса вашого Nightscout (напр. `https://my-ns.fly.dev`)
-   - **API Secret** — (необов'язково) якщо ваш сайт потребує автентифікації
-   - **Treatments count** — к-сть останніх treatments для завантаження (за замовч. 15)
+## Dashboard
 
-## Співіснування зі стандартною інтеграцією
+The integration is designed to work with [Plotly Graph Card](https://github.com/dbuezas/lovelace-plotly-graph-card).
 
-Nightscout Plus працює **паралельно** зі стандартною інтеграцією `nightscout`. Можна використовувати обидві, або вимкнути стандартну — як зручніше. Домен інтеграції `nightscout_plus` не конфліктує з `nightscout`.
+See `dashboard.yaml` for a complete example configuration with:
+- Color-coded glucose zones
+- Per-point coloring based on glucose level
+- Treatment note markers as diamond overlays
+- Target line at 4.9 mmol/L
 
-## Приклади автоматизацій
+### Glucose Zones
 
-```yaml
-# Сповіщення про нову замітку
-automation:
-  - alias: "Nightscout нова замітка"
-    trigger:
-      - trigger: state
-        entity_id: sensor.nightscout_last_note
-    action:
-      - action: notify.mobile_app
-        data:
-          title: "📝 Nightscout"
-          message: "{{ states('sensor.nightscout_last_note') }}"
+| Zone | Range (mmol/L) | Color |
+|------|----------------|-------|
+| LOW | < 3.9 | 🔴 Red |
+| SAFE | 3.9 – 6.0 | 🟢 Green |
+| OK | 6.0 – 7.8 | 🟡 Yellow-green |
+| HIGH | 7.8 – 10.0 | 🩷 Pink |
+| VERY HIGH | > 10.0 | 🔴 Red |
+| Target | 4.9 | Dark green solid line |
 
-# TTS оголошення про їжу
-  - alias: "Meal announced"
-    trigger:
-      - trigger: state
-        entity_id: sensor.nightscout_last_meal
-    condition:
-      - condition: template
-        value_template: "{{ states('sensor.nightscout_last_meal') | float(0) > 0 }}"
-    action:
-      - action: tts.speak
-        target:
-          entity_id: tts.google
-        data:
-          message: >
-            Зафіксовано прийом їжі:
-            {{ states('sensor.nightscout_last_meal') }} грам вуглеводів.
-            {% if state_attr('sensor.nightscout_last_meal', 'notes') %}
-            Примітка: {{ state_attr('sensor.nightscout_last_meal', 'notes') }}
-            {% endif %}
-```
+### Plotly Configuration
 
-## Використання в шаблонах
+The chart reads data from sensor attributes, not from HA's history database:
 
 ```yaml
-# Глюкоза в mmol/L
-{{ state_attr('sensor.nightscout_blood_glucose', 'value_mmol') }} ммоль/л
+# SGV line + dots from attributes
+x: |-
+  $fn ({ hass }) => {
+    const hist = hass.states['sensor.nightscout_plus_blood_glucose']?.attributes?.history;
+    if (!hist || !Array.isArray(hist) || hist.length === 0) return [];
+    return hist.map(h => h.date);
+  }
 
-# Тренд
-{{ state_attr('sensor.nightscout_blood_glucose', 'direction') }}
-
-# Остання замітка
-{{ states('sensor.nightscout_last_note') }}
-
-# Час останнього болюсу
-{{ state_attr('sensor.nightscout_last_bolus', 'created_at') }}
-
-# IOB (якщо є Loop/OpenAPS)
-{{ states('sensor.nightscout_insulin_on_board') }} U
+# Notes overlay
+x: |-
+  $fn ({ hass }) => {
+    const notes = hass.states['sensor.nightscout_plus_notes']?.attributes?.notes || [];
+    return notes
+      .filter(n => n && n.created_at && n.sgv !== null)
+      .map(n => n.created_at);
+  }
 ```
 
-## Технічні деталі
-
-- **Не використовує** бібліотеку `py-nightscout` — працює напряму з Nightscout REST API v1
-- Використовує `DataUpdateCoordinator` з HA — один HTTP запит для всіх сенсорів
-- Паралельні запити до `/entries`, `/treatments`, `/devicestatus` через `asyncio.gather`
-- Повністю async, не блокує event loop
-- Config Flow з UI — налаштування через інтерфейс, не потрібно редагувати YAML
-
-## Структура файлів
+## File Structure
 
 ```
 custom_components/nightscout_plus/
-├── __init__.py         # Entry setup / unload
-├── api.py              # HTTP client для Nightscout API
-├── config_flow.py      # UI конфігурація
-├── const.py            # Константи
-├── coordinator.py      # DataUpdateCoordinator
-├── manifest.json       # HA manifest
-├── sensor.py           # 8 sensor entities
-└── strings.json        # Переклади для config flow
+├── __init__.py        # Platform setup & teardown
+├── api.py             # Async HTTP client for Nightscout REST API v1
+├── config_flow.py     # UI configuration flow with reconfigure support
+├── const.py           # Constants, icons, event type mappings
+├── coordinator.py     # DataUpdateCoordinator (SGV + treatments → notes)
+├── manifest.json      # Integration metadata
+├── sensor.py          # Blood Glucose + Notes sensor entities
+└── strings.json       # UI strings for config flow
 ```
 
-## Ліцензія
+## Requirements
 
-Apache License 2.0 (як і Home Assistant core)
+- Home Assistant 2024.1+
+- [Plotly Graph Card](https://github.com/dbuezas/lovelace-plotly-graph-card) (HACS) — for dashboard charts
+- Nightscout instance with API v1 enabled
+
+## Changelog
+
+### v1.0.7 (2026-02-08)
+- **FIX**: UTC → local timezone conversion for all timestamps (sensor + coordinator)
+- **NEW**: `history[]` attribute on Blood Glucose sensor for Plotly charts
+- **NEW**: `history_count` diagnostic attribute
+- **NEW**: Hover tooltips with time display (`%H:%M`)
+- **IMPROVE**: Color-coded glucose zones (LOW/SAFE/OK/HIGH/VERY HIGH) + target 4.9
+
+### v1.0.4
+- Initial release with SGV + Notes sensors
+
+## License
+
+MIT

@@ -1,11 +1,4 @@
-"""Nightscout Plus — розширена інтеграція Nightscout для Home Assistant.
-
-Форк оригінальної інтеграції nightscout з підтримкою:
-- Treatments (ліки, їжа, болюси, замітки, тренування)
-- Notes (нотатки користувача)
-- IOB / COB (з devicestatus)
-- Blood Glucose (SGV) з підтримкою mmol/L
-"""
+"""Nightscout Plus — розширена інтеграція Nightscout для Home Assistant."""
 
 import logging
 
@@ -34,7 +27,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     client = NightscoutClient(url, api_secret=api_secret)
 
-    # Перевірка підключення
     try:
         status = await client.test_connection()
         _LOGGER.info(
@@ -53,7 +45,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         treatments_count=treatments_count,
     )
 
-    # Перше завантаження даних
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})

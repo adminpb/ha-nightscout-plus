@@ -1,0 +1,441 @@
+views:
+  - path: default_view
+    title: Home
+    icon: mdi:home
+    type: sections
+    max_columns: 2
+    badges: []
+    sections:
+      - type: grid
+        cards:
+          - type: horizontal-stack
+            cards:
+              - type: clock
+                clock_style: digital
+                clock_size: large
+                time_format: '24'
+                show_seconds: false
+                no_background: false
+                face_style: markers
+              - type: weather-forecast
+                entity: weather.forecast_golovna
+                show_forecast: false
+          - type: custom:mushroom-title-card
+            title: Швидкі дії
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-template-card
+                entity: switch.lampa
+                primary: Лампа
+                secondary: |
+                  {% if is_state('switch.lampa', 'on') %}
+                    ✅ Увімкнено
+                  {% else %}
+                    ⛔ Вимкнено
+                  {% endif %}
+                icon: mdi:lightbulb
+                icon_color: |
+                  {% if is_state('switch.lampa', 'on') %}
+                    amber
+                  {% else %}
+                    grey
+                  {% endif %}
+                layout: vertical
+                fill_container: true
+                tap_action:
+                  action: toggle
+                hold_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                entity: switch.zvolozhuvach
+                primary: Зволожувач
+                secondary: |
+                  {% if is_state('switch.zvolozhuvach', 'on') %}
+                    ✅ Увімкнено
+                  {% else %}
+                    ⛔ Вимкнено
+                  {% endif %}
+                icon: mdi:air-humidifier
+                icon_color: |
+                  {% if is_state('switch.zvolozhuvach', 'on') %}
+                    blue
+                  {% else %}
+                    grey
+                  {% endif %}
+                layout: vertical
+                fill_container: true
+                tap_action:
+                  action: toggle
+                hold_action:
+                  action: more-info
+          - type: entities
+            title: Zigbee2MQTT Bridge
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.zigbee2mqtt_bridge_connection_state
+                name: Bridge Connected
+              - entity: switch.zigbee2mqtt_bridge_permit_join
+                name: Permit join
+              - entity: button.zigbee2mqtt_bridge_restart
+                name: Restart
+              - entity: sensor.zigbee2mqtt_bridge_version
+                name: Version
+          - type: entities
+            title: SLZB-MR4U
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.slzb_mr4u_ethernet
+                name: Ethernet
+              - entity: binary_sensor.slzb_mr4u_internet
+                name: Internet
+              - entity: sensor.slzb_mr4u_connection_mode
+                name: Mode
+              - entity: sensor.slzb_mr4u_core_chip_temp
+                name: Core temp
+              - entity: sensor.slzb_mr4u_zigbee_chip_temp
+                name: Zigbee temp
+              - entity: switch.slzb_mr4u_disable_leds
+                name: Disable LEDs
+              - entity: button.slzb_mr4u_zigbee_restart
+                name: Restart Zigbee
+              - entity: button.slzb_mr4u_core_restart
+                name: Restart Core
+      - type: grid
+        cards:
+          - type: entities
+            title: Діапазон (цукор)
+            show_header_toggle: false
+            entities:
+              - entity: input_select.glucose_range
+                name: Показати
+          - type: custom:plotly-graph
+            title: Цукор (графік)
+            refresh_interval: 30
+            hours_to_show: |-
+              $fn ({ hass }) =>
+                (hass.states['input_select.glucose_range']?.state) || '3h'
+            layout:
+              showlegend: false
+              plot_bgcolor: '#FFFFFF'
+              paper_bgcolor: '#FFFFFF'
+              margin:
+                l: 45
+                r: 16
+                t: 30
+                b: 35
+              font:
+                family: 'Nunito, sans-serif'
+              xaxis:
+                type: date
+                gridcolor: 'rgba(0,0,0,0.04)'
+                gridwidth: 1
+                linecolor: 'rgba(0,0,0,0.06)'
+                tickfont:
+                  size: 11
+                  color: '#90A4AE'
+              yaxis:
+                range:
+                  - 3
+                  - 15
+                dtick: 2
+                gridcolor: 'rgba(0,0,0,0.03)'
+                gridwidth: 1
+                linecolor: 'rgba(0,0,0,0.06)'
+                tickfont:
+                  size: 11
+                  color: '#90A4AE'
+                ticksuffix: ' '
+              shapes:
+                # LOW < 3.9 (червоний)
+                - type: rect
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 3.0
+                  y1: 3.9
+                  fillcolor: 'rgba(255, 0, 0, 0.10)'
+                  line:
+                    width: 0
+                # SAFE 3.9–6.0 (зелений)
+                - type: rect
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 3.9
+                  y1: 6.0
+                  fillcolor: 'rgba(0, 255, 0, 0.08)'
+                  line:
+                    width: 0
+                # OK 6.0–7.8 (жовто-зелений)
+                - type: rect
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 6.0
+                  y1: 7.8
+                  fillcolor: 'rgba(170, 255, 0, 0.06)'
+                  line:
+                    width: 0
+                # HIGH 7.8–10.0 (рожевий)
+                - type: rect
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 7.8
+                  y1: 10.0
+                  fillcolor: 'rgba(255, 105, 180, 0.08)'
+                  line:
+                    width: 0
+                # VERY HIGH > 10.0 (червоний)
+                - type: rect
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 10.0
+                  y1: 15.0
+                  fillcolor: 'rgba(255, 0, 0, 0.10)'
+                  line:
+                    width: 0
+                # Ціль 4.9 (суцільна темно-зелена)
+                - type: line
+                  xref: paper
+                  yref: y
+                  x0: 0
+                  x1: 1
+                  y0: 4.9
+                  y1: 4.9
+                  line:
+                    color: '#006400'
+                    width: 1.5
+                    dash: solid
+              annotations:
+                - x: 0.01
+                  xref: paper
+                  y: 3.45
+                  yref: y
+                  text: '<b>LOW</b>'
+                  showarrow: false
+                  font:
+                    size: 9
+                    color: 'rgba(204, 0, 0, 0.55)'
+                - x: 0.01
+                  xref: paper
+                  y: 5.2
+                  yref: y
+                  text: '<b>Ціль 4.9</b>'
+                  showarrow: false
+                  font:
+                    size: 9
+                    color: '#006400'
+                - x: 0.99
+                  xref: paper
+                  y: 4.95
+                  yref: y
+                  text: '<b>SAFE</b>'
+                  showarrow: false
+                  xanchor: right
+                  font:
+                    size: 9
+                    color: 'rgba(0, 136, 0, 0.55)'
+                - x: 0.99
+                  xref: paper
+                  y: 6.9
+                  yref: y
+                  text: '<b>OK</b>'
+                  showarrow: false
+                  xanchor: right
+                  font:
+                    size: 9
+                    color: 'rgba(102, 136, 0, 0.55)'
+                - x: 0.99
+                  xref: paper
+                  y: 8.9
+                  yref: y
+                  text: '<b>HIGH</b>'
+                  showarrow: false
+                  xanchor: right
+                  font:
+                    size: 9
+                    color: 'rgba(204, 51, 119, 0.55)'
+                - x: 0.99
+                  xref: paper
+                  y: 12.0
+                  yref: y
+                  text: '<b>VERY HIGH</b>'
+                  showarrow: false
+                  xanchor: right
+                  font:
+                    size: 9
+                    color: 'rgba(204, 0, 0, 0.55)'
+            entities:
+              # ── SGV точки з кольором по зонах ──
+              - entity: ''
+                name: Глюкоза
+                type: scatter
+                mode: lines+markers
+                line:
+                  width: 3
+                  shape: spline
+                  color: |-
+                    $fn ({ hass }) => {
+                      const hist = hass.states['sensor.nightscout_plus_blood_glucose']?.attributes?.history;
+                      if (!hist || hist.length === 0) return '#43A047';
+                      const last = hist[hist.length - 1].sgv;
+                      if (last < 3.9) return '#EF5350';
+                      if (last <= 6.0) return '#43A047';
+                      if (last <= 7.8) return '#7CB342';
+                      if (last <= 10.0) return '#EC407A';
+                      return '#EF5350';
+                    }
+                marker:
+                  size: 5
+                  color: |-
+                    $fn ({ hass }) => {
+                      const hist = hass.states['sensor.nightscout_plus_blood_glucose']?.attributes?.history;
+                      if (!hist || !Array.isArray(hist) || hist.length === 0) return [];
+                      return hist.map(h => {
+                        const v = Number(h.sgv);
+                        if (v < 3.9) return '#EF5350';
+                        if (v <= 6.0) return '#43A047';
+                        if (v <= 7.8) return '#7CB342';
+                        if (v <= 10.0) return '#EC407A';
+                        return '#EF5350';
+                      });
+                    }
+                  line:
+                    width: 1
+                    color: '#FFFFFF'
+                x: |-
+                  $fn ({ hass }) => {
+                    const hist = hass.states['sensor.nightscout_plus_blood_glucose']?.attributes?.history;
+                    if (!hist || !Array.isArray(hist) || hist.length === 0) return [];
+                    return hist.map(h => h.date);
+                  }
+                'y': |-
+                  $fn ({ hass }) => {
+                    const hist = hass.states['sensor.nightscout_plus_blood_glucose']?.attributes?.history;
+                    if (!hist || !Array.isArray(hist) || hist.length === 0) return [];
+                    return hist.map(h => Number(h.sgv));
+                  }
+                hovertemplate: '%{y:.1f} mmol/L · %{x|%H:%M}<extra></extra>'
+              # ── Notes: фіолетові діаманти ──
+              - entity: ''
+                name: Нотатки
+                type: scatter
+                mode: markers+text
+                marker:
+                  size: 14
+                  color: '#7C4DFF'
+                  symbol: diamond
+                  line:
+                    width: 2
+                    color: '#FFFFFF'
+                textposition: top center
+                textfont:
+                  size: 10
+                  color: '#5E35B1'
+                  family: 'Nunito, sans-serif'
+                x: |-
+                  $fn ({ hass }) => {
+                    const notes = hass.states['sensor.nightscout_plus_notes']?.attributes?.notes || [];
+                    return notes
+                      .filter(n => n && n.created_at && n.sgv !== null && n.sgv !== undefined)
+                      .map(n => n.created_at);
+                  }
+                'y': |-
+                  $fn ({ hass }) => {
+                    const notes = hass.states['sensor.nightscout_plus_notes']?.attributes?.notes || [];
+                    return notes
+                      .filter(n => n && n.created_at && n.sgv !== null && n.sgv !== undefined)
+                      .map(n => Number(n.sgv));
+                  }
+                text: |-
+                  $fn ({ hass }) => {
+                    const notes = hass.states['sensor.nightscout_plus_notes']?.attributes?.notes || [];
+                    return notes
+                      .filter(n => n && n.created_at && n.sgv !== null && n.sgv !== undefined)
+                      .map(n => String(n.text ?? ''));
+                  }
+                hovertemplate: '%{text}<br>%{y:.1f} mmol/L · %{x|%H:%M}<extra></extra>'
+          - type: custom:mushroom-title-card
+            title: Клімат
+            subtitle: Температура та вологість
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.temperatura_ta_vologist_temperature
+                name: Температура
+                icon: mdi:thermometer
+                primary_info: name
+                secondary_info: state
+                fill_container: true
+              - type: custom:mushroom-entity-card
+                entity: sensor.temperatura_ta_vologist_humidity
+                name: Вологість
+                icon: mdi:water-percent
+                primary_info: name
+                secondary_info: state
+                fill_container: true
+          - type: entities
+            title: Діапазон (клімат)
+            show_header_toggle: false
+            entities:
+              - entity: input_select.climate_range
+                name: Показати
+          - type: custom:config-template-card
+            entities:
+              - input_select.climate_range
+            card:
+              type: custom:apexcharts-card
+              graph_span: ${states["input_select.climate_range"].state}
+              header:
+                show: true
+                title: Температура
+                show_states: true
+                colorize_states: true
+              now:
+                show: true
+              yaxis:
+                - min: 18
+                  max: 30
+                  decimals: 1
+              series:
+                - entity: sensor.temperatura_ta_vologist_temperature
+                  name: Температура
+                  type: line
+                  stroke_width: 2
+                  curve: smooth
+          - type: custom:config-template-card
+            entities:
+              - input_select.climate_range
+            card:
+              type: custom:apexcharts-card
+              graph_span: ${states["input_select.climate_range"].state}
+              header:
+                show: true
+                title: Вологість
+                show_states: true
+                colorize_states: true
+              now:
+                show: true
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimals: 0
+              series:
+                - entity: sensor.temperatura_ta_vologist_humidity
+                  name: Вологість
+                  type: line
+                  stroke_width: 2
+                  curve: smooth
