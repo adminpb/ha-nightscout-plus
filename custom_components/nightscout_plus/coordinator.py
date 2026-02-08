@@ -63,7 +63,9 @@ class NightscoutData:
     def latest_treatment(self) -> Optional[dict[str, Any]]:
         return self.treatments[0] if self.treatments else None
 
-    def find_latest_by_event_types(self, event_types: set[str]) -> Optional[dict[str, Any]]:
+    def find_latest_by_event_types(
+        self, event_types: set[str]
+    ) -> Optional[dict[str, Any]]:
         for t in self.treatments:
             if t.get("eventType") in event_types:
                 return t
@@ -177,7 +179,9 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
             return ev.strip()
         return "Note"
 
-    def _nearest_sgv_value(self, note_ts_ms: int, sgvs: list[dict[str, Any]]) -> Optional[float]:
+    def _nearest_sgv_value(
+        self, note_ts_ms: int, sgvs: list[dict[str, Any]]
+    ) -> Optional[float]:
         """Find nearest SGV by absolute timestamp diff."""
         best_sgv: Optional[dict[str, Any]] = None
         best_diff: Optional[int] = None
@@ -244,7 +248,10 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
                     continue
 
                 note = {
-                    "created_at": t.get("created_at"),
+                    "created_at": t.get("created_at")
+                    or datetime.fromtimestamp(
+                        ts_ms / 1000, tz=timezone.utc
+                    ).isoformat(),
                     "timestamp_ms": ts_ms,
                     "text": self._note_text(t),
                     "enteredBy": t.get("enteredBy"),
@@ -253,7 +260,13 @@ class NightscoutPlusCoordinator(DataUpdateCoordinator[NightscoutData]):
                 }
 
                 # y-value for marker (put on line)
-                note["sgv"] = self._nearest_sgv_value(ts_ms, data.sgvs)
+                sgv = self._nearest_sgv_value(ts_ms, data.sgvs)
+                if sgv is None:
+                    note["sgv"] = None
+                else:
+                    # Переводимо mg/dL -> mmol/L, щоб збігалося з тим,
+                    # як HA показує glucose sensor
+                    note["sgv"] = round(float(sgv) / 18.0182, 1)
 
                 notes.append(note)
 
