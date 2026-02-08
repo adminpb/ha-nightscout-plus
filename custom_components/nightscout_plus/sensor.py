@@ -166,6 +166,31 @@ class NightscoutGlucoseSensor(NightscoutPlusBaseSensor):
             attrs["delta_mmol"] = round(float(delta) * MGDL_TO_MMOL, 1)
         attrs["device"] = sgv.get("device")
         attrs["noise"] = sgv.get("noise")
+
+        # SGV history for Plotly (already sorted new→old from API)
+        history = []
+        for s in self._data.sgvs:
+            ts = s.get("dateString") or s.get("date")
+            val = s.get("sgv")
+            if ts is not None and val is not None:
+                entry: dict[str, Any] = {
+                    "sgv": round(float(val) * MGDL_TO_MMOL, 2),
+                }
+                # dateString is ISO, date is epoch ms
+                if isinstance(ts, str):
+                    entry["date"] = ts
+                elif isinstance(ts, int):
+                    from datetime import datetime, timezone
+                    entry["date"] = datetime.fromtimestamp(
+                        ts / 1000, tz=timezone.utc
+                    ).isoformat()
+                else:
+                    continue
+                history.append(entry)
+        # Reverse to old→new for plotly
+        history.reverse()
+        attrs["history"] = history
+
         return {k: v for k, v in attrs.items() if v is not None}
 
 
