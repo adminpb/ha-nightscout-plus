@@ -86,6 +86,17 @@ x: |-
   }
 ```
 
+### Current Reading Card
+
+Alongside the Plotly chart, [SugarTV Card](https://github.com/wiltodelta/homeassistant-sugartv-card) (HACS) works with `sensor.nightscout_plus_blood_glucose` out of the box, reading its `direction` and `date` attributes automatically:
+
+```yaml
+type: custom:sugartv-card
+glucose_value: sensor.nightscout_plus_blood_glucose
+```
+
+![SugarTV Card in a wide and a tall dashboard slot](https://raw.githubusercontent.com/wiltodelta/homeassistant-sugartv-card/v0.22.0/sugartv-card-layouts.png)
+
 ## File Structure
 
 ```
